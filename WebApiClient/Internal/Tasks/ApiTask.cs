@@ -8,7 +8,7 @@ namespace WebApiClient
     /// <summary>
     /// 表示Api请求的异步任务抽象类
     /// </summary>
-    abstract class ApiTask
+    public abstract class ApiTask
     {
 #if NET45
         /// <summary>

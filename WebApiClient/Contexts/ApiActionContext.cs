@@ -50,7 +50,7 @@ namespace WebApiClient.Contexts
         /// <summary>
         /// 获取关联的HttpResponseMessage
         /// </summary>
-        public HttpResponseMessage ResponseMessage { get; protected set; }
+        public HttpResponseMessage ResponseMessage { get; set; }
 
         /// <summary>
         /// 获取调用Api得到的结果

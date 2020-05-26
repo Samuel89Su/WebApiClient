@@ -46,6 +46,21 @@ namespace WebApiClient
         /// 注册指定Api以及其工厂
         /// 返回Api工厂实例
         /// </summary>
+        /// <param name="interfaceType">api接口类型</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <returns></returns>
+        public static HttpApiFactory Register(Type interfaceType)
+        {
+            var factory = new HttpApiFactory(interfaceType);
+            return RegisterFactory(factory);
+        }
+
+        /// <summary>
+        /// 注册指定Api以及其工厂
+        /// 返回Api工厂实例
+        /// </summary>
         /// <param name="name">工厂名称</param>
         /// <param name="interfaceType">api接口类型</param>
         /// <exception cref="ArgumentNullException"></exception>
@@ -96,7 +111,11 @@ namespace WebApiClient
             {
                 return httpApiFactory;
             }
-            throw new InvalidOperationException($"不允许注册重复名称的工厂名称：{name}");
+            else if(factories.ContainsKey(name))
+            {
+                return httpApiFactory;
+            }
+            throw new InvalidOperationException($"注册异常：{name}");
         }
 
         /// <summary>

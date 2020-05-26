@@ -111,7 +111,7 @@ namespace WebApiClient.Attributes
         /// <param name="headerValue"></param>
         /// <exception cref="HttpApiConfigException"></exception>
         /// <returns></returns>
-        private bool SetHeaderValue(ApiActionContext context, string headerValue)
+        protected bool SetHeaderValue(ApiActionContext context, string headerValue)
         {
             if (string.Equals(this.name, "Cookie", StringComparison.OrdinalIgnoreCase))
             {
@@ -135,7 +135,7 @@ namespace WebApiClient.Attributes
         /// <exception cref="HttpApiConfigException"></exception>
         /// <exception cref="CookieException"></exception>
         /// <returns></returns>
-        private bool SetCookie(ApiActionContext context, string cookieValues)
+        protected bool SetCookie(ApiActionContext context, string cookieValues)
         {
             var handler = context.HttpApiConfig.HttpHandler;
             if (handler.UseCookies == true)

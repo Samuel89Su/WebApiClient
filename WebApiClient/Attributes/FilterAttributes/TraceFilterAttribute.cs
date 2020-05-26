@@ -34,7 +34,7 @@ namespace WebApiClient.Attributes
         /// </summary>
         /// <param name="context">上下文</param>
         /// <returns></returns>
-        public sealed async override Task OnBeginRequestAsync(ApiActionContext context)
+        public async override Task OnBeginRequestAsync(ApiActionContext context)
         {
             if (this.IsNeedToTrace(context) == true)
             {
@@ -47,7 +47,7 @@ namespace WebApiClient.Attributes
         /// </summary>
         /// <param name="context">上下文</param>
         /// <returns></returns>
-        public sealed async override Task OnEndRequestAsync(ApiActionContext context)
+        public async override Task OnEndRequestAsync(ApiActionContext context)
         {
             if (this.IsNeedToTrace(context) == true)
             {
@@ -117,7 +117,7 @@ namespace WebApiClient.Attributes
         /// <param name="context">上下文</param>
         /// <param name="categoryName">日志容器名称</param>
         /// <param name="traceMessage">追踪的消息</param>
-        private void WriteLoggerFactory(ApiActionContext context, string categoryName, TraceMessage traceMessage)
+        protected virtual void WriteLoggerFactory(ApiActionContext context, string categoryName, TraceMessage traceMessage)
         {
             var logging = context.HttpApiConfig.LoggerFactory;
             if (logging == null)

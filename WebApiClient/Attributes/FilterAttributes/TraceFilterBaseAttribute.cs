@@ -96,7 +96,7 @@ namespace WebApiClient.Attributes
         /// </summary>
         /// <param name="response">响应信息</param>
         /// <returns></returns>
-        private string GetResponseHeadersString(HttpResponseMessage response)
+        protected virtual string GetResponseHeadersString(HttpResponseMessage response)
         {
             var builder = new StringBuilder()
                 .AppendLine($"HTTP/{response.Version} {(int)response.StatusCode} {response.ReasonPhrase}")
