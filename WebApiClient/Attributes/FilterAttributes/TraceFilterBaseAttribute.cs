@@ -99,14 +99,14 @@ namespace WebApiClient.Attributes
         protected virtual string GetResponseHeadersString(HttpResponseMessage response)
         {
             var builder = new StringBuilder()
-                .AppendLine($"HTTP/{response.Version} {(int)response.StatusCode} {response.ReasonPhrase}")
-                .Append(response.Headers.ToString());
+                .AppendLine($"HTTP/{response.Version} {(int)response.StatusCode} {response.ReasonPhrase ?? string.Empty}")
+                .Append(response.Headers?.ToString() ?? string.Empty);
 
             if (response.Content != null)
             {
-                builder.Append(response.Content.Headers.ToString());
+                builder.Append(response.Content?.Headers?.ToString());
             }
-            return builder.ToString();
+           return builder.ToString();
         }
 
         /// <summary>
