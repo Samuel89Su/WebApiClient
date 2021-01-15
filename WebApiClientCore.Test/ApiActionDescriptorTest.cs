@@ -1,4 +1,6 @@
-﻿using Xunit;
+﻿using System.Globalization;
+using System.Threading;
+using Xunit;
 
 namespace WebApiClientCore.Test
 {
@@ -7,6 +9,11 @@ namespace WebApiClientCore.Test
         [Fact]
         public void CtorTest()
         {
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
+
+            var str = Resx.contenType_RemainAs.Format("hhaha");
+            Assert.Equal("Content-Type must remain as hhaha.", str);
+
             var m = typeof(IDescriptorApi).GetMethod("Get1");
             var d = new ApiActionDescriptor(m);
 
