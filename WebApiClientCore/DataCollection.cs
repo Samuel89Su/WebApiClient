@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace WebApiClientCore
@@ -51,18 +52,36 @@ namespace WebApiClientCore
         }
 
         /// <summary>
-        /// 读取指定的键并强制转换为目标类型
+        /// 读取指定的键并尝试转换为目标类型
+        /// 失败则返回目标类型的default值
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
         /// <param name="key">键</param>
         /// <returns></returns>
-        public T Get<T>(object key)
+        [return: MaybeNull]
+        public TValue Get<TValue>(object key)
         {
-#nullable disable
-            return this.TryGetValue(key, out var value) ?
-                value == null ? default : (T)value :
-                default;
-#nullable enable
+            this.TryGetValue<TValue>(key, out var value);
+            return value;
+        }
+
+        /// <summary>
+        /// 尝试获取值
+        /// </summary>
+        /// <typeparam name="TValue"></typeparam>
+        /// <param name="key">键</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        public bool TryGetValue<TValue>(object key, [MaybeNull] out TValue value)
+        {
+            if (this.TryGetValue(key, out var objValue) && objValue is TValue tValue)
+            {
+                value = tValue;
+                return true;
+            }
+
+            value = default;
+            return false;
         }
 
         /// <summary>
@@ -126,9 +145,9 @@ namespace WebApiClientCore
             {
                 get
                 {
-                    return this.target.lazy.IsValueCreated ?
-                        this.target.lazy.Value.ToArray() :
-                        Array.Empty<KeyValuePair<object, object?>>();
+                    return this.target.lazy.IsValueCreated
+                        ? this.target.lazy.Value.ToArray()
+                        : Array.Empty<KeyValuePair<object, object?>>();
                 }
             }
         }

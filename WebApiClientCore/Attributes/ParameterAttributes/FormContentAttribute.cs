@@ -1,9 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace WebApiClientCore.Attributes
 {
     /// <summary>
-    /// 使用KeyValueFormatter序列化参数值得到的键值对作为x-www-form-urlencoded表单
+    /// 使用KeyValueSerializer序列化参数值得到的键值对作为x-www-form-urlencoded表单
     /// </summary>
     public class FormContentAttribute : HttpContentAttribute, ICollectionFormatable
     {
@@ -18,8 +19,18 @@ namespace WebApiClientCore.Attributes
         /// <param name="context">上下文</param>
         protected override async Task SetHttpContentAsync(ApiParameterContext context)
         {
-            var keyValues = context.SerializeToKeyValues().CollectAs(this.CollectionFormat);
+            var keyValues = this.SerializeToKeyValues(context).CollectAs(this.CollectionFormat);
             await context.HttpContext.RequestMessage.AddFormFieldAsync(keyValues).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 序列化参数为keyValue
+        /// </summary>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        protected virtual IEnumerable<KeyValue> SerializeToKeyValues(ApiParameterContext context)
+        {
+            return context.SerializeToKeyValues();
         }
     }
 }

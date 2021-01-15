@@ -4,9 +4,11 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using WebApiClientCore.Exceptions;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore
 {
@@ -21,67 +23,63 @@ namespace WebApiClientCore
         private static readonly AssemblyName assemblyName = typeof(HttpApiRequestMessage).Assembly.GetName();
 
         /// <summary>
-        /// 默认的UserAgent
+        /// 请求头的默认UserAgent
         /// </summary>
-        private static readonly ProductInfoHeaderValue defaultUserAgent = new ProductInfoHeaderValue(assemblyName.Name, assemblyName.Version?.ToString());
+        private readonly static ProductInfoHeaderValue defaultUserAgent = new ProductInfoHeaderValue(assemblyName.Name, assemblyName.Version?.ToString());
+
 
         /// <summary>
         /// httpApi的请求消息
         /// </summary>
         public HttpApiRequestMessage()
+            : this(null)
         {
-            this.Headers.UserAgent.Add(defaultUserAgent);
         }
 
         /// <summary>
-        /// 追加Query参数到请求路径
+        /// httpApi的请求消息
         /// </summary>
-        /// <param name="keyValue">参数</param>
-        /// <exception cref="ApiInvalidConfigException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddUrlQuery(IEnumerable<KeyValue> keyValue)
+        /// <param name="requestUri">请求uri</param>
+        public HttpApiRequestMessage(Uri? requestUri)
+            : this(requestUri, useDefaultUserAgent: false)
         {
-            this.AddUrlQuery(keyValue, Encoding.UTF8);
         }
 
         /// <summary>
-        /// 追加Query参数到请求路径
+        /// httpApi的请求消息
         /// </summary>
-        /// <param name="keyValue">参数</param>
-        /// <param name="encoding">编码</param>
-        /// <exception cref="ApiInvalidConfigException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddUrlQuery(IEnumerable<KeyValue> keyValue, Encoding encoding)
+        /// <param name="requestUri">请求uri</param>
+        /// <param name="useDefaultUserAgent">请求头是否包含默认的UserAgent</param>
+        public HttpApiRequestMessage(Uri? requestUri, bool useDefaultUserAgent)
         {
-            foreach (var kv in keyValue)
+            this.RequestUri = requestUri;
+            if (useDefaultUserAgent == true)
             {
-                this.AddUrlQuery(kv, encoding);
+                this.Headers.UserAgent.Add(defaultUserAgent);
             }
         }
 
         /// <summary>
-        /// 追加Query参数到请求路径
+        /// 替换请求域名
         /// </summary>
-        /// <param name="keyValue">参数</param>
+        /// <param name="httpHost">请求域名</param>
         /// <exception cref="ApiInvalidConfigException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddUrlQuery(KeyValue keyValue)
+        public void ReplaceHttpHost(Uri httpHost)
         {
-            this.AddUrlQuery(keyValue, Encoding.UTF8);
-        }
+            if (this.RequestUri == null)
+            {
+                throw new ApiInvalidConfigException(Resx.required_RequestUri);
+            }
 
-        /// <summary>
-        /// 追加Query参数到请求路径
-        /// </summary>
-        /// <param name="keyValue">参数</param>
-        /// <param name="encoding">编码</param>
-        /// <exception cref="ApiInvalidConfigException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddUrlQuery(KeyValue keyValue, Encoding encoding)
-        {
-            this.AddUrlQuery(keyValue.Key, keyValue.Value, encoding);
+            var path = this.RequestUri.OriginalString.AsSpan();
+            if (this.RequestUri.IsAbsoluteUri == true)
+            {
+                path = path.Slice(this.RequestUri.Scheme.Length + 3);
+                var index = path.IndexOf('/');
+                path = index < 0 ? "/" : path.Slice(index);
+            }
+            this.RequestUri = new Uri(httpHost, path.ToString());
         }
-
 
         /// <summary>
         /// 追加Query参数到请求路径
@@ -91,19 +89,6 @@ namespace WebApiClientCore
         /// <exception cref="ApiInvalidConfigException"></exception>
         /// <exception cref="ArgumentNullException"></exception>
         public void AddUrlQuery(string key, string? value)
-        {
-            this.AddUrlQuery(key, value, Encoding.UTF8);
-        }
-
-        /// <summary>
-        /// 追加Query参数到请求路径
-        /// </summary>
-        /// <param name="key">参数名</param>
-        /// <param name="value">参数值</param>
-        /// <param name="encoding">编码</param>
-        /// <exception cref="ApiInvalidConfigException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddUrlQuery(string key, string? value, Encoding encoding)
         {
             if (this.RequestUri == null)
             {
@@ -115,12 +100,7 @@ namespace WebApiClientCore
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (encoding == null)
-            {
-                throw new ArgumentNullException(nameof(encoding));
-            }
-
-            var editor = new UriEditor(this.RequestUri, encoding);
+            var editor = new UriEditor(this.RequestUri);
             editor.AddQuery(key, value);
             this.RequestUri = editor.Uri;
         }
@@ -136,12 +116,8 @@ namespace WebApiClientCore
         /// <returns></returns>
         public async Task AddFormFieldAsync(string name, string? value)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException(nameof(name));
-            }
-            var kv = new KeyValue(name, value);
-            await this.AddFormFieldAsync(new[] { kv }).ConfigureAwait(false);
+            var keyValue = new KeyValue(name, value);
+            await this.AddFormFieldAsync(new[] { keyValue }).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -153,18 +129,52 @@ namespace WebApiClientCore
         /// <returns></returns>
         public async Task AddFormFieldAsync(IEnumerable<KeyValue> keyValues)
         {
-            this.EnsureNotGetOrHead();
             this.EnsureMediaTypeEqual(FormContent.MediaType);
 
-            if (keyValues == null)
-            {
-                return;
-            }
-
-            var formContent = await FormContent.FromHttpContentAsync(this.Content).ConfigureAwait(false);
-            await formContent.AddFormFieldAsync(keyValues).ConfigureAwait(false);
+            var formContent = await FormContent.ParseAsync(this.Content).ConfigureAwait(false);
+            formContent.AddFormField(keyValues);
             this.Content = formContent;
         }
+
+
+        /// <summary>
+        /// 添加文本内容到已有的Content
+        /// 要求content-type为multipart/form-data
+        /// </summary>     
+        /// <param name="name">名称</param>
+        /// <param name="value">文本</param>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        public void AddFormDataText(string name, string? value)
+        {
+            var keyValue = new KeyValue(name, value);
+            this.AddFormDataText(new[] { keyValue });
+        }
+
+        /// <summary>
+        /// 添加文本内容到已有的Content
+        /// 要求content-type为multipart/form-data
+        /// </summary>     
+        /// <param name="keyValues">键值对</param>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        public void AddFormDataText(IEnumerable<KeyValue> keyValues)
+        {
+            this.EnsureMediaTypeEqual(FormDataContent.MediaType);
+
+            if (!(this.Content is MultipartContent httpContent))
+            {
+                httpContent = new FormDataContent();
+            }
+
+            foreach (var keyValue in keyValues)
+            {
+                var textContent = new FormDataTextContent(keyValue);
+                httpContent.Add(textContent);
+                this.Content = httpContent;
+            }
+        }
+
 
         /// <summary>
         /// 添加文件内容到已有的Content
@@ -177,82 +187,16 @@ namespace WebApiClientCore
         /// <exception cref="NotSupportedException"></exception>
         public void AddFormDataFile(Stream stream, string name, string? fileName, string? contentType)
         {
-            this.EnsureNotGetOrHead();
-
-            var httpContent = this.CastToFormDataContent();
-            var fileContent = new FormDataFileContent(stream, name, fileName, contentType);
-            httpContent.Add(fileContent);
-            this.Content = httpContent;
-        }
-
-        /// <summary>
-        /// 添加文本内容到已有的Content
-        /// 要求content-type为multipart/form-data
-        /// </summary>     
-        /// <param name="keyValues">键值对</param>
-        /// <exception cref="NotSupportedException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddFormDataText(IEnumerable<KeyValue> keyValues)
-        {
-            this.EnsureNotGetOrHead();
-
-            foreach (var kv in keyValues)
-            {
-                this.AddFormDataTextInternal(kv.Key, kv.Value);
-            }
-        }
-
-        /// <summary>
-        /// 添加文本内容到已有的Content
-        /// 要求content-type为multipart/form-data
-        /// </summary>     
-        /// <param name="name">名称</param>
-        /// <param name="value">文本</param>
-        /// <exception cref="NotSupportedException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void AddFormDataText(string name, string? value)
-        {
-            this.EnsureNotGetOrHead();
-            this.AddFormDataTextInternal(name, value);
-        }
-
-        /// <summary>
-        /// 添加文本内容到已有的Content
-        /// 要求content-type为multipart/form-data
-        /// </summary>     
-        /// <param name="name">名称</param>
-        /// <param name="value">文本</param>
-        /// <exception cref="NotSupportedException"></exception>
-        /// <exception cref="ArgumentNullException"></exception>
-        private void AddFormDataTextInternal(string name, string? value)
-        {
-            if (string.IsNullOrEmpty(name))
-            {
-                throw new ArgumentNullException(nameof(name));
-            }
-
-            var httpContent = this.CastToFormDataContent();
-            var textContent = new FormDataTextContent(name, value);
-            httpContent.Add(textContent);
-            this.Content = httpContent;
-        }
-
-
-        /// <summary>
-        /// 转换为FormDataContent
-        /// 为null则返回FormDataContent的实例
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
-        /// <returns></returns>
-        private MultipartContent CastToFormDataContent()
-        {
             this.EnsureMediaTypeEqual(FormDataContent.MediaType);
 
             if (!(this.Content is MultipartContent httpContent))
             {
                 httpContent = new FormDataContent();
             }
-            return httpContent;
+
+            var fileContent = new FormDataFileContent(stream, name, fileName, contentType);
+            httpContent.Add(fileContent);
+            this.Content = httpContent;
         }
 
         /// <summary>
@@ -260,6 +204,7 @@ namespace WebApiClientCore
         /// </summary>
         /// <param name="newMediaType">新的MediaType</param>
         /// <exception cref="NotSupportedException"></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureMediaTypeEqual(string newMediaType)
         {
             var existsMediaType = this.Content?.Headers.ContentType?.MediaType;
@@ -275,32 +220,22 @@ namespace WebApiClientCore
             }
         }
 
-
-        /// <summary>
-        /// 确保不是Get或Head请求
-        /// 返回关联的HttpContent对象
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
-        private void EnsureNotGetOrHead()
-        {
-            if (this.Method == HttpMethod.Get || this.Method == HttpMethod.Head)
-            {
-                var message = Resx.unsupported_HttpContent.Format(this.Method, this.GetType().Name);
-                throw new NotSupportedException(message);
-            }
-        }
-
         /// <summary>
         /// 读取请求头
         /// </summary>
         /// <returns></returns>
         public string GetHeadersString()
         {
+            const string host = "Host";
             var builder = new StringBuilder()
-               .AppendLine($"{this.Method} {this.RequestUri.PathAndQuery} HTTP/{this.Version}")
-               .AppendLine($"Host: {this.RequestUri.Authority}")
-               .Append(this.Headers.ToString());
+               .AppendLine($"{this.Method} {this.RequestUri.PathAndQuery} HTTP/{this.Version}");
 
+            if (this.Headers.Contains(host) == false)
+            {
+                builder.AppendLine($"{host}: {this.RequestUri.Authority}");
+            }
+
+            builder.Append(this.Headers.ToString());
             if (this.Content != null)
             {
                 builder.Append(this.Content.Headers.ToString());

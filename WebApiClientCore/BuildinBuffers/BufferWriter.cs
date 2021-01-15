@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace WebApiClientCore
 {
     /// <summary>
     /// 表示字节缓冲区写入对象
     /// </summary>
-    class BufferWriter<T> : IBufferWriter<T>, IDisposable
+    sealed class BufferWriter<T> : Disposable, IBufferWriter<T>
     {
-        private const int MinimumBufferSize = 256;
+        private const int defaultSizeHint = 256;
         private IArrayOwner<T> byteArrayOwner;
 
         /// <summary>
@@ -21,18 +22,13 @@ namespace WebApiClientCore
         /// </summary>
         public int Capacity => this.byteArrayOwner.Array.Length;
 
-        /// <summary>
-        /// 获取空余容量
-        /// </summary>
-        public int FreeCapacity => this.Capacity - this.WrittenCount;
-
 
         /// <summary>
         /// 字节缓冲区写入对象
         /// </summary>
         /// <param name="initialCapacity">初始容量</param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public BufferWriter(int initialCapacity)
+        public BufferWriter(int initialCapacity = 1024)
         {
             if (initialCapacity <= 0)
             {
@@ -92,31 +88,32 @@ namespace WebApiClientCore
         /// 写入数据
         /// </summary>
         /// <param name="value"></param>
-        /// <returns></returns>
-        public int Write(T value)
+        public void Write(T value)
         {
-            const int length = 1;
-            this.GetSpan(length)[0] = value;
-            this.Advance(length);
-            return length;
+            this.GetSpan(1)[0] = value;
+            this.WrittenCount += 1;
         }
 
         /// <summary>
         /// 写入数据
         /// </summary>
-        /// <param name="value">值</param>
-        /// <returns></returns>
-        public int Write(ReadOnlySpan<T> value)
+        /// <param name="value">值</param> 
+        public void Write(ReadOnlySpan<T> value)
         {
-            var length = value.Length;
-            if (length == 0)
+            if (value.IsEmpty == false)
             {
-                return 0;
+                value.CopyTo(this.GetSpan(value.Length));
+                this.WrittenCount += value.Length;
             }
+        }
 
-            value.CopyTo(this.GetSpan(length));
-            this.Advance(length);
-            return length;
+        /// <summary>
+        /// 获取已数入的数据
+        /// </summary>
+        /// <returns></returns>
+        public ArraySegment<T> GetWrittenSegment()
+        {
+            return new ArraySegment<T>(this.byteArrayOwner.Array, 0, this.WrittenCount);
         }
 
         /// <summary>
@@ -138,7 +135,8 @@ namespace WebApiClientCore
         /// <summary>
         /// 释放资源
         /// </summary>
-        public void Dispose()
+        /// <param name="disposing"></param>
+        protected sealed override void Dispose(bool disposing)
         {
             this.byteArrayOwner?.Dispose();
         }
@@ -148,28 +146,34 @@ namespace WebApiClientCore
         /// </summary>
         /// <param name="sizeHint"></param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckAndResizeBuffer(int sizeHint)
         {
-            if (sizeHint <= 0)
+            if (this.IsDisposed == true)
+            {
+                throw new ObjectDisposedException(this.GetType().Name);
+            }
+
+            if (sizeHint < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(sizeHint));
             }
 
             if (sizeHint == 0)
             {
-                sizeHint = MinimumBufferSize;
+                sizeHint = defaultSizeHint;
             }
 
-            if (sizeHint > this.FreeCapacity)
+            var freeCapacity = this.Capacity - this.WrittenCount;
+            if (sizeHint > freeCapacity)
             {
                 var growBy = Math.Max(sizeHint, this.Capacity);
                 var newSize = checked(this.Capacity + growBy);
 
-                var oldByteArrayOwner = this.byteArrayOwner;
-                this.byteArrayOwner = ArrayPool.Rent<T>(newSize);
-
-                oldByteArrayOwner.Array.AsSpan(0, this.WrittenCount).CopyTo(this.byteArrayOwner.Array);
-                oldByteArrayOwner.Dispose();
+                var newOwer = ArrayPool.Rent<T>(newSize);
+                this.GetWrittenSpan().CopyTo(newOwer.Array);
+                this.byteArrayOwner.Dispose();
+                this.byteArrayOwner = newOwer;
             }
         }
     }

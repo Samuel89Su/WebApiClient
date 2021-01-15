@@ -6,27 +6,26 @@ namespace WebApiClientCore.Attributes
 {
     /// <summary>
     /// 表示请求服务http绝对完整主机域名
-    /// 例如http://www.webapiclientcore.com
+    /// 例如http://www.abc.com/
     /// </summary>
     [DebuggerDisplay("Host = {Host}")]
-    public class HttpHostAttribute : ApiActionAttribute
+    public partial class HttpHostAttribute : HttpHostBaseAttribute
     {
         /// <summary>
-        /// 获取根路径
+        /// 获取完整主机域名
         /// </summary>
-        public Uri Host { get; }
+        public Uri? Host { get; }
 
         /// <summary>
-        /// 请求服务的根路径
-        /// 例如http://www.webapiclientcore.com
+        /// 请求服务http绝对完整主机域名      
         /// </summary>
-        /// <param name="host">请求完整绝对根路径</param>
+        /// <param name="host">例如http://www.abc.com</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="UriFormatException"></exception>
+        [AttributeCtorUsage(AttributeTargets.Interface | AttributeTargets.Method)]
         public HttpHostAttribute(string host)
         {
             this.Host = new Uri(host, UriKind.Absolute);
-            this.OrderIndex = int.MinValue;
         }
 
         /// <summary>
@@ -41,15 +40,6 @@ namespace WebApiClientCore.Attributes
                 context.HttpContext.RequestMessage.RequestUri = this.Host;
             }
             return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// 转换为字符串
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return this.Host.ToString();
         }
     }
 }

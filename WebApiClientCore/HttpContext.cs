@@ -1,57 +1,52 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading;
 
 namespace WebApiClientCore
 {
     /// <summary>
     /// 表示http上下文
     /// </summary>
-    public class HttpContext : IDisposable
+    public class HttpContext : HttpClientContext, IDisposable
     {
         /// <summary>
-        /// 获取关联的HttpClient实例
+        /// 获取或设置指示请求完成选项
         /// </summary>
-        public HttpClient Client { get; }
+        public HttpCompletionOption? CompletionOption { get; set; }
 
         /// <summary>
-        /// 获取Api配置选项
+        /// 获取请求取消令牌集合
         /// </summary>
-        public HttpApiOptions Options { get; }
+        public IList<CancellationToken> CancellationTokens { get; }
 
         /// <summary>
-        /// 获取服务提供者
-        /// </summary>
-        public IServiceProvider Services { get; }
-
-        /// <summary>
-        /// 获取关联的HttpRequestMessage
+        /// 获取请求消息
         /// </summary>
         public HttpApiRequestMessage RequestMessage { get; }
 
         /// <summary>
-        /// 获取关联的的HttpResponseMessage
+        /// 获取响应消息
         /// </summary>
         public HttpResponseMessage? ResponseMessage { get; internal set; }
 
         /// <summary>
         /// http上下文
         /// </summary>
-        /// <param name="client">httpClient</param>
-        /// <param name="services">服务提供者</param>
-        /// <param name="options">接口选项</param>
+        /// <param name="context">服务上下文</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public HttpContext(HttpClient client, IServiceProvider services, HttpApiOptions options)
+        public HttpContext(HttpClientContext context)
+            : base(context.HttpClient, context.ServiceProvider, context.HttpApiOptions, context.OptionsName)
         {
-            this.Client = client ?? throw new ArgumentNullException(nameof(client));
-            this.Services = services ?? throw new ArgumentNullException(nameof(services));
-            this.Options = options ?? throw new ArgumentNullException(nameof(options));
-            this.RequestMessage = new HttpApiRequestMessage { RequestUri = options.HttpHost ?? client.BaseAddress };
-        }         
+            var requiredUri = context.HttpApiOptions.HttpHost ?? context.HttpClient.BaseAddress;
+            this.RequestMessage = new HttpApiRequestMessage(requiredUri, context.HttpApiOptions.UseDefaultUserAgent);
+            this.CancellationTokens = new List<CancellationToken>();
+        }
 
         /// <summary>
         /// 释放资源
-        /// </summary> 
-        void IDisposable.Dispose()
+        /// </summary>
+        public virtual void Dispose()
         {
             this.RequestMessage?.Dispose();
         }

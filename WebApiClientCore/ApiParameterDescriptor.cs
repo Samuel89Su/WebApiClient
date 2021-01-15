@@ -20,32 +20,32 @@ namespace WebApiClientCore
         /// <summary>
         /// 获取参数名称
         /// </summary>
-        public string Name { get; protected set; }
+        public string Name { get; }
 
         /// <summary>
         /// 获取关联的参数信息
         /// </summary>
-        public ParameterInfo Member { get; protected set; }
+        public ParameterInfo Member { get; }
 
         /// <summary>
         /// 获取参数索引
         /// </summary>
-        public int Index { get; protected set; }
+        public int Index { get; }
 
         /// <summary>
         /// 获取参数类型
         /// </summary>
-        public Type ParameterType { get; protected set; }
+        public Type ParameterType { get; }
 
         /// <summary>
         /// 获取关联的参数特性
         /// </summary>
-        public IReadOnlyList<IApiParameterAttribute> Attributes { get; protected set; }
+        public IReadOnlyList<IApiParameterAttribute> Attributes { get; }
 
         /// <summary>
         /// 获取关联的ValidationAttribute特性
         /// </summary>
-        public IReadOnlyList<ValidationAttribute> ValidationAttributes { get; protected set; }
+        public IReadOnlyList<ValidationAttribute> ValidationAttributes { get; }
 
         /// <summary>
         /// 请求Api的参数描述
@@ -63,10 +63,8 @@ namespace WebApiClientCore
             var parameterAlias = parameter.GetCustomAttribute<AliasAsAttribute>();
             var parameterName = parameterAlias == null ? parameter.Name : parameterAlias.Name;
 
-            var defined = parameter.GetAttributes<IApiParameterAttribute>(true);
-            var attributes = this
-                .GetAttributes(parameterType, defined)
-                .ToReadOnlyList();
+            var defined = parameter.GetAttributes<IApiParameterAttribute>();
+            var attributes = GetAttributes(parameterType, defined).ToReadOnlyList();
 
             var validationAttributes = parameter
                 .GetCustomAttributes<ValidationAttribute>(true)
@@ -86,7 +84,7 @@ namespace WebApiClientCore
         /// <param name="parameterType">参数类型</param>
         /// <param name="defined">参数上声明的特性</param>
         /// <returns></returns>
-        protected virtual IEnumerable<IApiParameterAttribute> GetAttributes(Type parameterType, IEnumerable<IApiParameterAttribute> defined)
+        private static IEnumerable<IApiParameterAttribute> GetAttributes(Type parameterType, IEnumerable<IApiParameterAttribute> defined)
         {
             if (parameterType.IsInheritFrom<HttpContent>() == true)
             {
@@ -98,7 +96,7 @@ namespace WebApiClientCore
                 return RepeatOne<ApiParameterTypeAttribute>();
             }
 
-            if (parameterType == typeof(CancellationToken))
+            if (parameterType == typeof(CancellationToken) || parameterType.IsInheritFrom<IEnumerable<CancellationToken>>())
             {
                 return RepeatOne<CancellationTokenTypeAttribute>();
             }

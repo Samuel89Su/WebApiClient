@@ -47,8 +47,8 @@ namespace WebApiClientCore {
         }
         
         /// <summary>
-        ///   重写当前线程的 CurrentUICulture 属性
-        ///   重写当前线程的 CurrentUICulture 属性。
+        ///   重写当前线程的 CurrentUICulture 属性，对
+        ///   使用此强类型资源类的所有资源查找执行重写。
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
         internal static global::System.Globalization.CultureInfo Culture {
@@ -75,6 +75,24 @@ namespace WebApiClientCore {
         internal static string failure_StatusCode {
             get {
                 return ResourceManager.GetString("failure_StatusCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 使用了{0}请求方法，但仍然设置了请求体内容，远程接口可能无法兼容 的本地化字符串。
+        /// </summary>
+        internal static string gethead_Content_Warning {
+            get {
+                return ResourceManager.GetString("gethead_Content_Warning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 数据内容已经被缓存和固化 的本地化字符串。
+        /// </summary>
+        internal static string httpContent_isBuffered {
+            get {
+                return ResourceManager.GetString("httpContent_isBuffered", resourceCulture);
             }
         }
         
@@ -106,11 +124,20 @@ namespace WebApiClientCore {
         }
         
         /// <summary>
-        ///   查找类似 无法将参数{0}转换为Timeout 的本地化字符串。
+        ///   查找类似 无法将参数值{0}转换为Timeout 的本地化字符串。
         /// </summary>
         internal static string parameter_CannotCvtTimeout {
             get {
                 return ResourceManager.GetString("parameter_CannotCvtTimeout", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 无法将参数值{0}转换为Uri 的本地化字符串。
+        /// </summary>
+        internal static string parameter_CannotCvtUri {
+            get {
+                return ResourceManager.GetString("parameter_CannotCvtUri", resourceCulture);
             }
         }
         
@@ -241,6 +268,15 @@ namespace WebApiClientCore {
         }
         
         /// <summary>
+        ///   查找类似 无法将JsonTokenType.{0}转换为{1}类型 的本地化字符串。
+        /// </summary>
+        internal static string unsupported_ConvertType {
+            get {
+                return ResourceManager.GetString("unsupported_ConvertType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 不支持泛型方法: {0} 的本地化字符串。
         /// </summary>
         internal static string unsupported_GenericMethod {
@@ -250,11 +286,29 @@ namespace WebApiClientCore {
         }
         
         /// <summary>
-        ///   查找类似 {0}方法不支持使用{1} 的本地化字符串。
+        ///   查找类似 不支持注册泛型定义类型{0} 的本地化字符串。
         /// </summary>
-        internal static string unsupported_HttpContent {
+        internal static string unsupported_GenericTypeDefinitionType {
             get {
-                return ResourceManager.GetString("unsupported_HttpContent", resourceCulture);
+                return ResourceManager.GetString("unsupported_GenericTypeDefinitionType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 HttpMessageHandler必须是DelegatingHandler或者HttpClientHandler 的本地化字符串。
+        /// </summary>
+        internal static string unsupported_HttpMessageHandler {
+            get {
+                return ResourceManager.GetString("unsupported_HttpMessageHandler", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 HttpClientHandler必须开启UseCookies 的本地化字符串。
+        /// </summary>
+        internal static string unsupported_NoUseCookies {
+            get {
+                return ResourceManager.GetString("unsupported_NoUseCookies", resourceCulture);
             }
         }
         
@@ -282,15 +336,6 @@ namespace WebApiClientCore {
         internal static string unsupported_SerializeApiParametern {
             get {
                 return ResourceManager.GetString("unsupported_SerializeApiParametern", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似 由于使用了{0}的请求方法，不支持设置RequestMessage.Content 的本地化字符串。
-        /// </summary>
-        internal static string unsupported_SetContent {
-            get {
-                return ResourceManager.GetString("unsupported_SetContent", resourceCulture);
             }
         }
     }

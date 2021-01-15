@@ -4,6 +4,8 @@ using System.Text;
 using System.Threading.Tasks;
 using WebApiClientCore.Attributes;
 using WebApiClientCore.Exceptions;
+using WebApiClientCore.HttpContents;
+using WebApiClientCore.Serialization;
 using Xunit;
 
 namespace WebApiClientCore.Test.Attributes.ReturnAttributes
@@ -20,8 +22,9 @@ namespace WebApiClientCore.Test.Attributes.ReturnAttributes
             context.HttpContext.RequestMessage.Method = HttpMethod.Post;
 
             var model = new TestModel();
-            var json = context.HttpContext.Services.GetRequiredService<IJsonFormatter>().Serialize(model, null);
-            context.HttpContext.ResponseMessage.Content = new JsonContent(json);
+            var jsonContent = new JsonContent();
+            context.HttpContext.ResponseMessage.Content = jsonContent;
+            context.HttpContext.ServiceProvider.GetRequiredService<IJsonSerializer>().Serialize(jsonContent, model, null);
 
             var attr = new JsonReturnAttribute();
             await attr.OnResponseAsync(responseContext);
@@ -39,7 +42,7 @@ namespace WebApiClientCore.Test.Attributes.ReturnAttributes
             context.HttpContext.RequestMessage.Method = HttpMethod.Post;
 
             var model = new TestModel();
-            var xml = context.HttpContext.Services.GetRequiredService<IXmlFormatter>().Serialize(model, Encoding.UTF8);
+            var xml = context.HttpContext.ServiceProvider.GetRequiredService<IXmlSerializer>().Serialize(model, null);
             context.HttpContext.ResponseMessage.Content = new XmlContent(xml, Encoding.UTF8);
 
             var attr = new XmlReturnAttribute();
@@ -57,6 +60,7 @@ namespace WebApiClientCore.Test.Attributes.ReturnAttributes
             var responseContext = new ApiResponseContext(context);
 
             context.HttpContext.RequestMessage.Method = HttpMethod.Post;
+            context.HttpContext.ResponseMessage.Content = new JsonContent();
             context.HttpContext.ResponseMessage.StatusCode = System.Net.HttpStatusCode.InternalServerError;
 
             await Assert.ThrowsAsync<ApiResponseStatusException>(async () =>

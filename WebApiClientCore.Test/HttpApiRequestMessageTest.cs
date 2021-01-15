@@ -1,14 +1,25 @@
 ﻿using System;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 using WebApiClientCore.Exceptions;
 using Xunit;
 
 namespace WebApiClientCore.Test
 {
     public class HttpApiRequestMessageTest
-    { 
+    {
+        [Fact]
+        public void ReplaceHttpHostTest()
+        {
+            var request = new HttpApiRequestMessage();
+            Assert.Throws<ApiInvalidConfigException>(() => request.ReplaceHttpHost(new Uri("/", UriKind.Relative)));
+
+            request.RequestUri = new Uri("http://webapiclient.com/a/b");
+            request.ReplaceHttpHost(new Uri("https://a.com"));
+
+            Assert.Equal(request.RequestUri, new Uri("https://a.com/a/b"));
+        }
+
         [Fact]
         public void AddUrlQueryTest()
         {
@@ -21,12 +32,11 @@ namespace WebApiClientCore.Test
 
             Assert.Throws<ArgumentNullException>(() => request.AddUrlQuery(null, string.Empty));
 
-            var kv = new KeyValue("yKey", "yValue");
-            request.AddUrlQuery(kv);
+            request.AddUrlQuery("yKey", "yValue");
             Assert.True(request.RequestUri == new Uri("http://webapiclient.com?xKey=xValue&yKey=yValue"));
 
-            var unicodeValue = HttpUtility.UrlEncode("老九", Encoding.UTF8);
-            request.AddUrlQuery(new[] { new KeyValue("zKey", "老九") }, Encoding.UTF8);
+            var unicodeValue = Uri.EscapeDataString("老九");
+            request.AddUrlQuery("zKey", "老九");
             var url = new Uri($"http://webapiclient.com?xKey=xValue&yKey=yValue&zKey={unicodeValue}");
             Assert.True(request.RequestUri == url);
         }
@@ -35,7 +45,9 @@ namespace WebApiClientCore.Test
         public async Task AddFormFiledAsyncTest()
         {
             var reqeust = new HttpApiRequestMessage();
-            await Assert.ThrowsAsync<NotSupportedException>(() => reqeust.AddFormFieldAsync("name", "value"));
+
+            // 已经移除Get或Head限制
+            // await Assert.ThrowsAsync<NotSupportedException>(() => reqeust.AddFormFieldAsync("name", "value"));
 
             reqeust.Method = System.Net.Http.HttpMethod.Post;
             reqeust.RequestUri = new Uri("http://webapiclient.com");
@@ -70,6 +82,6 @@ namespace WebApiClientCore.Test
             Assert.Contains(get("name", "laojiu"), body);
             Assert.Contains(get("age", "18"), body);
             Assert.True(reqeust.Content.Headers.ContentType.MediaType == "multipart/form-data");
-        }         
+        }
     }
 }

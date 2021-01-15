@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -10,71 +11,53 @@ namespace WebApiClientCore
     static class AttributeExtensions
     {
         /// <summary>
-        /// 获取成员的特性
+        /// 获取方法的特性
         /// </summary>
         /// <typeparam name="TAttribute"></typeparam>
-        /// <param name="parameter">参数</param>
-        /// <param name="inherit"></param>
+        /// <param name="method">方法</param> 
         /// <returns></returns>
-        public static IEnumerable<TAttribute> GetAttributes<TAttribute>(this ParameterInfo parameter, bool inherit) where TAttribute : class
+        public static TAttribute? GetAttribute<TAttribute>(this MethodInfo method) where TAttribute : class
         {
-            return parameter.GetCustomAttributes(inherit).OfType<TAttribute>();
+            return method.GetAttributes<TAttribute>().FirstOrDefault();
         }
 
         /// <summary>
-        /// 从方法或声明的类型中查找第一个特性
+        /// 获取方法的特性
         /// </summary>
         /// <typeparam name="TAttribute"></typeparam>
-        /// <param name="method">方法</param>
-        /// <param name="inherit"></param>
+        /// <param name="method">方法</param> 
         /// <returns></returns>
-        public static TAttribute? FindDeclaringAttribute<TAttribute>(this MethodInfo method, bool inherit) where TAttribute : class
+        public static IEnumerable<TAttribute> GetAttributes<TAttribute>(this MethodInfo method) where TAttribute : class
         {
-            return method.GetAttribute<TAttribute>(inherit) ?? method.DeclaringType?.GetAttribute<TAttribute>(inherit);
+            return method.GetCustomAttributes().OfType<TAttribute>();
         }
 
         /// <summary>
-        /// 从方法和声明的类型中查找所有特性
+        /// 获取参数的特性
         /// </summary>
         /// <typeparam name="TAttribute"></typeparam>
-        /// <param name="method">方法</param>
-        /// <param name="inherit"></param>
+        /// <param name="parameter">参数</param> 
         /// <returns></returns>
-        public static IEnumerable<TAttribute> FindDeclaringAttributes<TAttribute>(this MethodInfo method, bool inherit) where TAttribute : class
+        public static IEnumerable<TAttribute> GetAttributes<TAttribute>(this ParameterInfo parameter) where TAttribute : class
         {
-            var methodAttributes = method.GetAttributes<TAttribute>(inherit);
-            if (method.DeclaringType == null)
+            return parameter.GetCustomAttributes().OfType<TAttribute>();
+        }
+
+        /// <summary>
+        /// 获取接口定义的特性
+        /// </summary>
+        /// <typeparam name="TAttribute"></typeparam>
+        /// <param name="interfaceType">接口类型</param>
+        /// <param name="inclueBases">是否包括基础接口定义的特性</param> 
+        /// <returns></returns>
+        public static IEnumerable<TAttribute> GetAttributes<TAttribute>(this Type interfaceType, bool inclueBases) where TAttribute : class
+        {
+            var types = Enumerable.Repeat(interfaceType, 1);
+            if (inclueBases == true)
             {
-                return methodAttributes;
+                types = types.Concat(interfaceType.GetInterfaces());
             }
-
-            var interfaceAttributes = method.DeclaringType.GetAttributes<TAttribute>(inherit);
-            return methodAttributes.Concat(interfaceAttributes);
-        }
-
-
-        /// <summary>
-        /// 获取成员的特性
-        /// </summary>
-        /// <typeparam name="TAttribute"></typeparam>
-        /// <param name="member">成员</param>
-        /// <param name="inherit"></param>
-        /// <returns></returns>
-        public static TAttribute? GetAttribute<TAttribute>(this MemberInfo member, bool inherit) where TAttribute : class
-        {
-            return member.GetAttributes<TAttribute>(inherit).FirstOrDefault();
-        }
-
-        /// <summary>
-        /// 获取成员的特性
-        /// </summary>
-        /// <typeparam name="TAttribute"></typeparam>
-        /// <param name="member">成员</param>
-        /// <param name="inherit"></param>
-        /// <returns></returns>
-        private static IEnumerable<TAttribute> GetAttributes<TAttribute>(this MemberInfo member, bool inherit) where TAttribute : class
-        {
-            return member.GetCustomAttributes(inherit).OfType<TAttribute>();
+            return types.SelectMany(item => item.GetCustomAttributes().OfType<TAttribute>());
         }
     }
 }

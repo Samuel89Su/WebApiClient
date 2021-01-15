@@ -1,44 +1,28 @@
 ﻿using System;
 using System.Text;
 using System.Threading.Tasks;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore.Attributes
 {
     /// <summary>
-    /// 使用XmlFormatter序列化参数值得到的xml文本作为application/xml请求
+    /// 使用XmlSerializer序列化参数值得到的xml文本作为application/xml请求
     /// </summary>
-    public class XmlContentAttribute : HttpContentAttribute, IEncodingable
+    public class XmlContentAttribute : HttpContentAttribute, ICharSetable
     {
         /// <summary>
         /// 编码方式
         /// </summary>
-        private Encoding encoding = System.Text.Encoding.UTF8;
+        private Encoding encoding = Encoding.UTF8;
 
         /// <summary>
         /// 获取或设置编码名称
         /// </summary>
-        /// <exception cref="ArgumentException"></exception>
-        public string Encoding
+        /// <exception cref="ArgumentException"></exception>        
+        public string CharSet
         {
             get => this.encoding.WebName;
-            set => this.encoding = System.Text.Encoding.GetEncoding(value);
-        }
-
-        /// <summary>
-        /// 序列化参数值得到的xml文本作为application/xml请求    
-        /// </summary>
-        public XmlContentAttribute()
-        {
-        }
-
-        /// <summary>
-        /// 序列化参数值得到的xml文本作为application/xml请求
-        /// </summary>
-        /// <param name="encoding">编码</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public XmlContentAttribute(string encoding)
-        {
-            this.Encoding = encoding;
+            set => this.encoding = Encoding.GetEncoding(value);
         }
 
         /// <summary>

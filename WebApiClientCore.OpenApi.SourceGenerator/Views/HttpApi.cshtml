@@ -1,8 +1,6 @@
-﻿@inherits HtmlTemplateBase<HttpApi>
-
-@using WebApiClientCore.OpenApi.SourceGenerator
-@using RazorEngine.Templating
-@using NSwag
+﻿@inherits HtmlTempate<HttpApi>
+@using NSwag;
+@using WebApiClientCore.OpenApi.SourceGenerator;
 
 <HttpApi>
     <usings>
@@ -54,15 +52,13 @@
                             <div>/// @line</div>
                         }
                         <div>/// &lt;/summary&gt;</div>
-                    }
 
-                    @foreach (var parameter in method.Parameters)
-                    {
-                        var description = parameter.HasDescription ? parameter.Description.Replace("\r", "\t").Replace("\n", "\t") : null;
-                        <div>/// &lt;param name="@(parameter.VariableName)"&gt;@(description)&lt;/param&gt;</div>
-                    }
-                    @if (method.HasResultDescription == true)
-                    {
+                        foreach (var parameter in method.Parameters)
+                        {
+                            var description = parameter.HasDescription ? parameter.Description.Replace("\r", "\t").Replace("\n", "\t") : null;
+                            <div>/// &lt;param name="@(parameter.VariableName)"&gt;@(description)&lt;/param&gt;</div>
+                        }
+                        <div>/// &lt;param name="cancellationToken"&gt;cancellationToken&lt;/param&gt;</div>
                         <div>/// &lt;returns&gt;@(method.ResultDescription)&lt;/returns&gt;</div>
                     }
                 </summary>
@@ -93,7 +89,7 @@
 
                             if (parameter.Kind == OpenApiParameterKind.Path || parameter.Kind == OpenApiParameterKind.Query)
                             {
-                                var schema = parameter.Schema as NSwag.OpenApiParameter;
+                                var schema = parameter.Schema as OpenApiParameter;
                                 if (schema != null && schema.CollectionFormat != OpenApiParameterCollectionFormat.Undefined
                                     && schema.CollectionFormat != OpenApiParameterCollectionFormat.Multi)
                                 {
@@ -131,8 +127,9 @@
                             }
 
                             <span>@(parameter.TypeInControllerInterface)</span>
-                            <span>@(parameter.VariableName)@(parameter.IsLast ? null : ",")</span>
+                            <span>@(parameter.VariableName), </span>
                         }
+                        <span>CancellationToken cancellationToken = default</span>
                     </parameters>
                     <span>);</span>
                 </div>

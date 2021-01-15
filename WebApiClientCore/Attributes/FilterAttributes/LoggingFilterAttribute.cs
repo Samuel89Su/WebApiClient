@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore.Attributes
 {
@@ -36,6 +36,11 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public sealed async override Task OnRequestAsync(ApiRequestContext context)
         {
+            if (context.HttpContext.HttpApiOptions.UseLogging == false)
+            {
+                return;
+            }
+
             var logMessage = new LogMessage
             {
                 RequestTime = DateTime.Now,
@@ -61,8 +66,17 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public sealed async override Task OnResponseAsync(ApiResponseContext context)
         {
+            if (context.HttpContext.HttpApiOptions.UseLogging == false)
+            {
+                return;
+            }
+
             var response = context.HttpContext.ResponseMessage;
             var logMessage = context.Properties.Get<LogMessage>(typeof(LoggingFilterAttribute));
+            if (logMessage == null)
+            {
+                return;
+            }
 
             logMessage.ResponseTime = DateTime.Now;
             logMessage.Exception = context.Exception;
@@ -71,7 +85,7 @@ namespace WebApiClientCore.Attributes
             {
                 logMessage.HasResponse = true;
                 logMessage.ResponseHeaders = response.GetHeadersString();
-                logMessage.ResponseContent = await this.ReadResponseContentAsync(response).ConfigureAwait(false);
+                logMessage.ResponseContent = await this.ReadResponseContentAsync(context).ConfigureAwait(false);
             }
 
             await this.WriteLogAsync(context, logMessage).ConfigureAwait(false);
@@ -97,11 +111,22 @@ namespace WebApiClientCore.Attributes
         /// <summary>
         /// 读取响应内容
         /// </summary>
-        /// <param name="response"></param>
+        /// <param name="context"></param>
         /// <returns></returns>
-        private async Task<string?> ReadResponseContentAsync(HttpResponseMessage response)
+        private async Task<string?> ReadResponseContentAsync(ApiResponseContext context)
         {
-            return response.Content == null ? null : await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var content = context.HttpContext.ResponseMessage?.Content;
+            if (content == null)
+            {
+                return null;
+            }
+
+            if (content.IsBuffered() == true || context.GetCompletionOption() == HttpCompletionOption.ResponseContentRead)
+            {
+                return await content.ReadAsStringAsync().ConfigureAwait(false);
+            }
+
+            return "...";
         }
 
         /// <summary>
@@ -112,20 +137,23 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         protected virtual Task WriteLogAsync(ApiResponseContext context, LogMessage logMessage)
         {
-            var method = context.ApiAction.Member;
-            var categoryName = $"{method.DeclaringType?.Namespace}.{method.DeclaringType?.Name}.{method.Name}";
-
-            var loggerFactory = context.HttpContext.Services.GetService<ILoggerFactory>();
+            var loggerFactory = context.HttpContext.ServiceProvider.GetService<ILoggerFactory>();
             if (loggerFactory == null)
             {
                 return Task.CompletedTask;
             }
 
+            var method = context.ApiAction.Member;
+            var categoryName = $"{method.DeclaringType?.Namespace}.{method.DeclaringType?.Name}.{method.Name}";
             var logger = loggerFactory.CreateLogger(categoryName);
-            logger.LogInformation(logMessage.ToExcludeException().ToString());
-            if (logMessage.Exception != null)
+
+            if (logMessage.Exception == null)
             {
-                logger.LogError(logMessage.Exception, logMessage.Exception.Message);
+                logger.LogInformation(logMessage.ToString());
+            }
+            else
+            {
+                logger.LogError(logMessage.ToString());
             }
 
             return Task.CompletedTask;

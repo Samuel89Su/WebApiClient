@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore.Attributes
 {
@@ -8,6 +9,11 @@ namespace WebApiClientCore.Attributes
     /// </summary>
     public class JsonReturnAttribute : ApiReturnAttribute
     {
+        /// <summary>
+        /// text/json
+        /// </summary>
+        private static readonly string textJson = "text/json";
+
         /// <summary>
         /// json内容的结果特性
         /// </summary>
@@ -26,17 +32,25 @@ namespace WebApiClientCore.Attributes
         }
 
         /// <summary>
+        /// 指示响应的ContentType与AcceptContentType是否匹配
+        /// 返回false则调用下一个ApiReturnAttribute来处理响应结果
+        /// </summary>
+        /// <param name="responseContentType">响应的ContentType</param>
+        /// <returns></returns>
+        protected override bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
+        {
+            return base.IsMatchAcceptContentType(responseContentType) || MediaType.IsMatch(textJson, responseContentType?.MediaType);
+        }
+
+        /// <summary>
         /// 设置强类型模型结果值
         /// </summary>
         /// <param name="context">上下文</param>
         /// <returns></returns>
         public override async Task SetResultAsync(ApiResponseContext context)
         {
-            if (context.ApiAction.Return.DataType.IsRawType == false)
-            {
-                var resultType = context.ApiAction.Return.DataType.Type;
-                context.Result = await context.JsonDeserializeAsync(resultType).ConfigureAwait(false);
-            }
+            var resultType = context.ApiAction.Return.DataType.Type;
+            context.Result = await context.JsonDeserializeAsync(resultType).ConfigureAwait(false);
         }
     }
 }

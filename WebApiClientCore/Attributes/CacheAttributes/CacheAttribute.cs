@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WebApiClientCore.Exceptions;
 
 namespace WebApiClientCore.Attributes
 {
@@ -43,6 +44,15 @@ namespace WebApiClientCore.Attributes
         }
 
         /// <summary>
+        /// 使用缓存的特性
+        /// </summary>
+        /// <param name="expiration"></param>
+        protected CacheAttribute(TimeSpan expiration)
+            : base(expiration)
+        {
+        }
+
+        /// <summary>
         /// 设置作为缓存键的请求头
         /// </summary>
         /// <param name="headersString"></param>
@@ -68,8 +78,12 @@ namespace WebApiClientCore.Attributes
         public override Task<string> GetCacheKeyAsync(ApiRequestContext context)
         {
             var request = context.HttpContext.RequestMessage;
-            var uri = request.RequestUri.ToString();
+            if (request.RequestUri == null)
+            {
+                throw new ApiInvalidConfigException(Resx.required_RequestUri);
+            }
 
+            var uri = request.RequestUri.ToString();
             if (this.IncludeHeaderNames.Length == 0)
             {
                 return Task.FromResult(uri);
@@ -79,7 +93,7 @@ namespace WebApiClientCore.Attributes
             foreach (var name in this.IncludeHeaderNames)
             {
                 var value = string.Empty;
-                if (request.Headers.TryGetValues(name, out IEnumerable<string> values))
+                if (request.Headers.TryGetValues(name, out IEnumerable<string>? values))
                 {
                     value = string.Join(",", values);
                 }

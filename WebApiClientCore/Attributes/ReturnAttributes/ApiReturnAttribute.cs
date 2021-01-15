@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using WebApiClientCore.Exceptions;
@@ -15,7 +16,7 @@ namespace WebApiClientCore.Attributes
         /// <summary>
         /// 获取接受的媒体类型
         /// </summary>
-        protected MediaTypeWithQualityHeaderValue? AcceptContentType { get; }
+        public MediaTypeWithQualityHeaderValue AcceptContentType { get; }
 
         /// <summary>
         /// 获取执行排序索引
@@ -25,7 +26,7 @@ namespace WebApiClientCore.Attributes
         {
             get
             {
-                var quality = this.AcceptContentType?.Quality ?? 1d;
+                var quality = this.AcceptContentType.Quality ?? 1d;
                 return (int)((1d - quality) * int.MaxValue);
             }
         }
@@ -57,9 +58,10 @@ namespace WebApiClientCore.Attributes
         /// 响应内容处理的抽象特性
         /// </summary>
         /// <param name="accpetContentType">收受的内容类型</param>
-        public ApiReturnAttribute(MediaTypeWithQualityHeaderValue? accpetContentType)
+        /// <exception cref="ArgumentNullException"></exception>
+        public ApiReturnAttribute(MediaTypeWithQualityHeaderValue accpetContentType)
         {
-            this.AcceptContentType = accpetContentType;
+            this.AcceptContentType = accpetContentType ?? throw new ArgumentNullException(nameof(accpetContentType));
         }
 
         /// <summary>
@@ -69,7 +71,7 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public Task OnRequestAsync(ApiRequestContext context)
         {
-            if (this.AcceptContentType != null)
+            if (context.ApiAction.Return.DataType.IsRawType == false)
             {
                 context.HttpContext.RequestMessage.Headers.Accept.Add(this.AcceptContentType);
             }
@@ -83,26 +85,57 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public async Task OnResponseAsync(ApiResponseContext context)
         {
-            this.UseSuccessStatusCode(context);
-            if (this.UseMatchAcceptContentType(context) == true)
-            {
-                await this.SetResultAsync(context).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// 应用成功状态码
-        /// </summary>
-        /// <param name="context"></param>
-        /// <exception cref="ApiResponseStatusException"></exception>
-        private void UseSuccessStatusCode(ApiResponseContext context)
-        {
-            var response = context.HttpContext.ResponseMessage;
-            if (response == null || this.EnsureSuccessStatusCode == false)
+            if (context.ApiAction.Return.DataType.IsRawType == true)
             {
                 return;
             }
 
+            var contenType = context.HttpContext.ResponseMessage?.Content.Headers.ContentType;
+            if (this.EnsureMatchAcceptContentType && this.IsMatchAcceptContentType(contenType) == false)
+            {
+                return;
+            }
+
+            await this.ValidateResponseAsync(context).ConfigureAwait(false);
+            await this.SetResultAsync(context).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 指示响应的ContentType与AcceptContentType是否匹配
+        /// 返回false则调用下一个ApiReturnAttribute来处理响应结果
+        /// </summary>
+        /// <param name="responseContentType">响应的ContentType</param>
+        /// <returns></returns>
+        protected virtual bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
+        {
+            return MediaType.IsMatch(this.AcceptContentType.MediaType, responseContentType?.MediaType);
+        }
+
+        /// <summary>
+        /// 验证响应消息
+        /// 验证不通过则抛出指定的异常
+        /// </summary>
+        /// <param name="context">上下文</param>
+        /// <exception cref="ApiResponseStatusException"></exception>
+        /// <returns></returns>
+        protected virtual Task ValidateResponseAsync(ApiResponseContext context)
+        {
+            var response = context.HttpContext.ResponseMessage;
+            if (response != null && this.EnsureSuccessStatusCode == true)
+            {
+                this.ValidateResponseStatusCode(response);
+            }
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 验证响应消息的http状态码
+        /// 验证不通过则抛出指定的异常
+        /// </summary>
+        /// <param name="response">响应消息</param>
+        /// <exception cref="ApiResponseStatusException"></exception>
+        protected virtual void ValidateResponseStatusCode(HttpResponseMessage response)
+        {
             if (this.IsSuccessStatusCode(response.StatusCode) == false)
             {
                 throw new ApiResponseStatusException(response);
@@ -110,44 +143,14 @@ namespace WebApiClientCore.Attributes
         }
 
         /// <summary>
-        /// 应用匹配ContentType
+        /// 指示http状态码是否为成功的状态码
         /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        private bool UseMatchAcceptContentType(ApiResponseContext context)
-        {
-            if (this.EnsureMatchAcceptContentType == true && this.AcceptContentType != null)
-            {
-                var contenType = context.HttpContext.ResponseMessage?.Content.Headers.ContentType;
-                if (this.IsMatchAcceptContentType(contenType) == false)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// 指示状态码是否为成功的状态码
-        /// </summary>
-        /// <param name="statusCode">状态码</param>
+        /// <param name="statusCode">http状态码</param>
         /// <returns></returns>
         protected virtual bool IsSuccessStatusCode(HttpStatusCode statusCode)
         {
             var status = (int)statusCode;
             return status >= 200 && status <= 299;
-        }
-
-        /// <summary>
-        /// 验证响应的ContentType与Accept-ContentType是否匹配
-        /// </summary>
-        /// <param name="responseContentType"></param>
-        /// <returns></returns>
-        protected virtual bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
-        {
-            var accept = this.AcceptContentType?.MediaType;
-            var response = responseContentType?.MediaType;
-            return string.Equals(accept, response, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

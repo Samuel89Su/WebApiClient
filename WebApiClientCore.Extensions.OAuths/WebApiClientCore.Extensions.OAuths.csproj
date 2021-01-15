@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <Nullable>enable</Nullable>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
 
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>Sign.snk</AssemblyOriginatorKeyFile>
 
-    <Version>1.0.0-beta3</Version>
+    <Version>1.1.5</Version>
     <Authors>laojiu</Authors>
-    <Company>laojiu</Company> 
+    <Company>laojiu</Company>
     <Copyright>Copyright © laojiu 2017-2020</Copyright>
     <Description>基于WebApiClientCore的token提供者</Description>
     <Summary>基于WebApiClientCore的token提供者</Summary>
@@ -19,11 +19,17 @@
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dotnetcore/WebApiClient</PackageProjectUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/dotnetcore/WebApiClient/master/icon.png</PackageIconUrl>
-  </PropertyGroup>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup> 
 
   <ItemGroup>
     <ProjectReference Include="..\WebApiClientCore\WebApiClientCore.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+    <None Include="..\icon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
 </Project>

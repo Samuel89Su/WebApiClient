@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
+using WebApiClientCore.Exceptions;
 
 namespace WebApiClientCore
 {
@@ -53,6 +53,26 @@ namespace WebApiClientCore
             return typeof(TBase).IsAssignableFrom(type);
         }
 
+
+        /// <summary>
+        /// 创建实例
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="type">实例类型</param>
+        /// <param name="args">参数值</param>
+        /// <exception cref="TypeInstanceCreateException"></exception>
+        /// <returns></returns>
+        public static T CreateInstance<T>(this Type type, params object?[] args)
+        {
+            var instance = Activator.CreateInstance(type, args);
+            if (instance == null)
+            {
+                throw new TypeInstanceCreateException(type);
+            }
+            return (T)instance;
+        }
+
+
         /// <summary>
         /// 获取接口类型及其继承的接口的所有方法
         /// 忽略HttpApi类型的所有接口的方法
@@ -68,10 +88,9 @@ namespace WebApiClientCore
                 throw new ArgumentException(Resx.required_InterfaceType.Format(interfaceType.Name));
             }
 
-            var apiMethods = new[] { interfaceType }.Concat(interfaceType.GetInterfaces())
+            var apiMethods = interfaceType.GetInterfaces().Append(interfaceType)
                 .SelectMany(item => item.GetMethods())
                 .Select(item => item.EnsureApiMethod())
-                .OrderBy(item => item.GetFullName())
                 .ToArray();
 
             return apiMethods;
@@ -131,52 +150,6 @@ namespace WebApiClientCore
 
             var taskType = method.ReturnType.GetGenericTypeDefinition();
             return taskType == typeof(ITask<>);
-        }
-
-        /// <summary>
-        /// 返回方法的完整名称
-        /// </summary>
-        /// <param name="method">方法</param>
-        /// <returns></returns>
-        private static string GetFullName(this MethodInfo method)
-        {
-            var builder = new StringBuilder();
-            foreach (var p in method.GetParameters())
-            {
-                if (builder.Length > 0)
-                {
-                    builder.Append(",");
-                }
-                builder.Append(p.ParameterType.GetName());
-            }
-
-            var insert = $"{method.ReturnType.GetName()} {method.Name}(";
-            return builder.Insert(0, insert).Append(")").ToString();
-        }
-
-        /// <summary>
-        /// 返回类型不含namespace的名称
-        /// </summary>
-        /// <param name="type">类型</param>
-        /// <returns></returns>
-        private static string GetName(this Type type)
-        {
-            if (type.IsGenericType == false)
-            {
-                return type.Name;
-            }
-
-            var builder = new StringBuilder();
-            foreach (var argType in type.GetGenericArguments())
-            {
-                if (builder.Length > 0)
-                {
-                    builder.Append(",");
-                }
-                builder.Append(argType.GetName());
-            }
-
-            return builder.Insert(0, $"{type.Name}<").Append(">").ToString();
         }
     }
 }

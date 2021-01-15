@@ -2,29 +2,29 @@
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using WebApiClientCore.Parameters;
 
 namespace WebApiClientCore.Attributes
 {
     /// <summary>
     /// 表示请求的基本授权
     /// </summary>
-    [DebuggerDisplay("{baiscAuth}")]
+    [DebuggerDisplay("{Basic} {parameter}")]
     public class BasicAuthAttribute : ApiActionAttribute
     {
-        private readonly string userName;
-        private readonly string? password;
+        /// <summary>
+        /// 授权头的值
+        /// </summary>
+        private readonly BasicAuthenticationHeaderValue authorization;
 
         /// <summary>
         /// 基本授权
         /// </summary>
-        /// <param name="userName">账号</param>
+        /// <param name="username">账号</param>
         /// <param name="password">密码</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public BasicAuthAttribute(string userName, string? password)
+        public BasicAuthAttribute(string username, string? password)
         {
-            this.userName = userName ?? throw new ArgumentNullException(userName);
-            this.password = password;
+            this.authorization = new BasicAuthenticationHeaderValue(username, password);
         }
 
         /// <summary>
@@ -34,8 +34,7 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public override Task OnRequestAsync(ApiRequestContext context)
         {
-            var parameter = BasicAuth.GetParameter(this.userName, this.password);
-            context.HttpContext.RequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Basic", parameter);
+            context.HttpContext.RequestMessage.Headers.Authorization = authorization;
             return Task.CompletedTask;
         }
     }

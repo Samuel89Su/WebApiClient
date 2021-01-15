@@ -23,14 +23,12 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public override Task OnRequestAsync(ApiParameterContext context)
         {
-            var keyValues = context.SerializeToKeyValues();
-            foreach (var kv in keyValues)
+            foreach (var item in context.SerializeToKeyValues())
             {
-                var value = kv.Value;
-                if (value != null)
+                if (string.IsNullOrEmpty(item.Value) == false)
                 {
-                    var name = this.UnderlineToMinus ? kv.Key.Replace("_", "-") : kv.Key;
-                    context.HttpContext.RequestMessage.Headers.TryAddWithoutValidation(name, value);
+                    var name = this.UnderlineToMinus ? item.Key.Replace("_", "-") : item.Key;
+                    context.HttpContext.RequestMessage.Headers.TryAddWithoutValidation(name, item.Value);
                 }
             }
             return Task.CompletedTask;

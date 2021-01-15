@@ -1,15 +1,21 @@
 ﻿using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using WebApiClientCore.HttpContents;
 
 namespace WebApiClientCore.Attributes
 {
     /// <summary>
-    /// 表示json内容的结果特性
+    /// 表示xml内容的结果特性
     /// </summary>
     public class XmlReturnAttribute : ApiReturnAttribute
     {
         /// <summary>
-        /// json内容的结果特性
+        /// text/xml
+        /// </summary>
+        private static readonly string textXml = "text/xml";
+
+        /// <summary>
+        /// xml内容的结果特性
         /// </summary>
         public XmlReturnAttribute()
             : base(new MediaTypeWithQualityHeaderValue(XmlContent.MediaType))
@@ -17,12 +23,23 @@ namespace WebApiClientCore.Attributes
         }
 
         /// <summary>
-        /// json内容的结果特性
+        /// xml内容的结果特性
         /// </summary>
         /// <param name="acceptQuality">accept的质比</param>
         public XmlReturnAttribute(double acceptQuality)
             : base(new MediaTypeWithQualityHeaderValue(XmlContent.MediaType, acceptQuality))
         {
+        }
+
+        /// <summary>
+        /// 指示响应的ContentType与AcceptContentType是否匹配
+        /// 返回false则调用下一个ApiReturnAttribute来处理响应结果
+        /// </summary>
+        /// <param name="responseContentType">响应的ContentType</param>
+        /// <returns></returns>
+        protected override bool IsMatchAcceptContentType(MediaTypeHeaderValue? responseContentType)
+        {
+            return base.IsMatchAcceptContentType(responseContentType) || MediaType.IsMatch(textXml, responseContentType?.MediaType);
         }
 
         /// <summary>
@@ -32,11 +49,8 @@ namespace WebApiClientCore.Attributes
         /// <returns></returns>
         public override async Task SetResultAsync(ApiResponseContext context)
         {
-            if (context.ApiAction.Return.DataType.IsRawType == false)
-            {
-                var resultType = context.ApiAction.Return.DataType.Type;
-                context.Result = await context.XmlDeserializeAsync(resultType).ConfigureAwait(false);
-            }
+            var resultType = context.ApiAction.Return.DataType.Type;
+            context.Result = await context.XmlDeserializeAsync(resultType).ConfigureAwait(false);
         }
     }
 }

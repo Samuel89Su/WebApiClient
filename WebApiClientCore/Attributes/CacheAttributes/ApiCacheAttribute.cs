@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using WebApiClientCore.ResponseCaches;
 
 namespace WebApiClientCore.Attributes
 {
@@ -21,10 +22,18 @@ namespace WebApiClientCore.Attributes
         /// </summary>
         /// <param name="expiration">缓存毫秒数</param>
         public ApiCacheAttribute(double expiration)
+            : this(TimeSpan.FromMilliseconds(expiration))
         {
-            this.Expiration = TimeSpan.FromMilliseconds(expiration);
         }
 
+        /// <summary>
+        /// 使用缓存的特性
+        /// </summary>
+        /// <param name="expiration"></param>
+        protected ApiCacheAttribute(TimeSpan expiration)
+        {
+            this.Expiration = expiration;
+        }
 
         /// <summary>
         /// 返回读取缓存的策略
@@ -44,6 +53,17 @@ namespace WebApiClientCore.Attributes
         public virtual CachePolicy GetWritePolicy(ApiRequestContext context)
         {
             return CachePolicy.Include;
+        }
+
+
+        /// <summary>
+        /// 获取缓存提供者
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public virtual IResponseCacheProvider? GetCacheProvider(ApiRequestContext context)
+        {
+            return context.HttpContext.ServiceProvider.GetService<IResponseCacheProvider>();
         }
 
         /// <summary>

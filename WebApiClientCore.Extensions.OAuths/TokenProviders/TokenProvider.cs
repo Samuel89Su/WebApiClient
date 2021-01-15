@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System;
 using System.Threading.Tasks;
 using WebApiClientCore.Extensions.OAuths.Exceptions;
@@ -8,7 +9,7 @@ namespace WebApiClientCore.Extensions.OAuths.TokenProviders
     /// <summary>
     /// 表示Token提供者抽象类
     /// </summary>
-    public abstract class TokenProvider : ITokenProvider, IDisposable
+    public abstract class TokenProvider : ITokenProvider
     {
         /// <summary>
         /// 最近请求到的token
@@ -26,12 +27,28 @@ namespace WebApiClientCore.Extensions.OAuths.TokenProviders
         private readonly AsyncRoot asyncRoot = new AsyncRoot();
 
         /// <summary>
+        /// 获取或设置别名
+        /// </summary>
+        public string Name { get; set; } = Options.DefaultName;
+
+        /// <summary>
         /// Token提供者抽象类
         /// </summary>
         /// <param name="services"></param>
         public TokenProvider(IServiceProvider services)
         {
             this.services = services;
+        }
+
+        /// <summary>
+        /// 获取选项值
+        /// Options名称为本类型的Name属性
+        /// </summary>
+        /// <typeparam name="TOptions"></typeparam>
+        /// <returns></returns>
+        public TOptions GetOptionsValue<TOptions>()
+        {
+            return this.services.GetRequiredService<IOptionsMonitor<TOptions>>().Get(this.Name);
         }
 
         /// <summary>
@@ -56,16 +73,15 @@ namespace WebApiClientCore.Extensions.OAuths.TokenProviders
                 if (this.token == null)
                 {
                     using var scope = this.services.CreateScope();
-                    var oAuthClient = scope.ServiceProvider.GetRequiredService<IOAuthClient>();
-                    this.token = await this.RequestTokenAsync(oAuthClient).ConfigureAwait(false);
+                    this.token = await this.RequestTokenAsync(scope.ServiceProvider).ConfigureAwait(false);
                 }
                 else if (this.token.IsExpired() == true)
                 {
                     using var scope = this.services.CreateScope();
-                    var oAuthClient = scope.ServiceProvider.GetRequiredService<IOAuthClient>();
-                    this.token = this.token.CanRefresh() == false ?
-                        await this.RequestTokenAsync(oAuthClient).ConfigureAwait(false) :
-                        await this.RefreshTokenAsync(oAuthClient, this.token.Refresh_token).ConfigureAwait(false);
+
+                    this.token = this.token.CanRefresh() == false
+                        ? await this.RequestTokenAsync(scope.ServiceProvider).ConfigureAwait(false)
+                        : await this.RefreshTokenAsync(scope.ServiceProvider, this.token.Refresh_token ?? string.Empty).ConfigureAwait(false);
                 }
 
                 if (this.token == null)
@@ -80,24 +96,25 @@ namespace WebApiClientCore.Extensions.OAuths.TokenProviders
         /// <summary>
         /// 请求获取token
         /// </summary> 
-        /// <param name="oAuthClient">Token客户端</param>
+        /// <param name="serviceProvider">服务提供者</param>
         /// <returns></returns>
-        protected abstract Task<TokenResult?> RequestTokenAsync(IOAuthClient oAuthClient);
+        protected abstract Task<TokenResult?> RequestTokenAsync(IServiceProvider serviceProvider);
 
         /// <summary>
         /// 刷新token
         /// </summary> 
-        /// <param name="oAuthClient">Token客户端</param>
+        /// <param name="serviceProvider">服务提供者</param>
         /// <param name="refresh_token">刷新token</param>
         /// <returns></returns>
-        protected abstract Task<TokenResult?> RefreshTokenAsync(IOAuthClient oAuthClient, string? refresh_token);
+        protected abstract Task<TokenResult?> RefreshTokenAsync(IServiceProvider serviceProvider, string refresh_token);
 
         /// <summary>
-        /// 释放资源
+        /// 转换为string
         /// </summary>
-        public void Dispose()
+        /// <returns></returns>
+        public override string ToString()
         {
-            this.asyncRoot.Dispose();
+            return this.Name;
         }
     }
 }

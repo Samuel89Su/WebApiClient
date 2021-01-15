@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
+﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace WebApiClientCore
@@ -9,7 +12,10 @@ namespace WebApiClientCore
     /// </summary>
     public class ApiResponseContext : ApiRequestContext
     {
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         private object? result;
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         private Exception? exception;
 
         /// <summary>
@@ -22,8 +28,8 @@ namespace WebApiClientCore
             set
             {
                 this.result = value;
-                this.exception = null;
                 this.ResultStatus = ResultStatus.HasResult;
+                this.exception = null;
             }
         }
 
@@ -32,14 +38,15 @@ namespace WebApiClientCore
         /// 在IApiReturnAttribute设置该值之后会中断下一个IApiReturnAttribute的执行
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
+        [DisallowNull]
         public Exception? Exception
         {
             get => this.exception;
             set
             {
-                this.result = null;
                 this.exception = value ?? throw new ArgumentNullException(nameof(Exception));
                 this.ResultStatus = ResultStatus.HasException;
+                this.result = null;
             }
         }
 
@@ -53,7 +60,7 @@ namespace WebApiClientCore
         /// </summary>
         /// <param name="context">请求上下文</param>
         public ApiResponseContext(ApiRequestContext context)
-            : base(context.HttpContext, context.ApiAction, context.Arguments, context.Properties, context.CancellationTokens)
+            : base(context.HttpContext, context.ApiAction, context.Arguments, context.Properties)
         {
         }
 
@@ -69,10 +76,33 @@ namespace WebApiClientCore
                 return objType.DefaultValue();
             }
 
-            var formatter = this.HttpContext.Services.GetRequiredService<IJsonFormatter>();
-            var json = await this.HttpContext.ResponseMessage.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-            var options = this.HttpContext.Options.JsonDeserializeOptions;
-            return formatter.Deserialize(json, objType, options);
+            var content = this.HttpContext.ResponseMessage.Content;
+            if (content == null)
+            {
+                return objType.DefaultValue();
+            }
+
+            var encoding = content.GetEncoding();
+            var options = this.HttpContext.HttpApiOptions.JsonDeserializeOptions;
+            var serializer = this.HttpContext.ServiceProvider.GetJsonSerializer();
+
+            if (Encoding.UTF8.Equals(encoding) == false)
+            {
+                var byteArray = await content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                var utf8Json = Encoding.Convert(encoding, Encoding.UTF8, byteArray);
+                return serializer.Deserialize(utf8Json, objType, options);
+            }
+
+            if (content.IsBuffered() == false)
+            {
+                var utf8Json = await content.ReadAsStreamAsync().ConfigureAwait(false);
+                return await serializer.DeserializeAsync(utf8Json, objType, options).ConfigureAwait(false);
+            }
+            else
+            {
+                var utf8Json = await content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                return serializer.Deserialize(utf8Json, objType, options);
+            }
         }
 
         /// <summary>
@@ -87,9 +117,10 @@ namespace WebApiClientCore
                 return objType.DefaultValue();
             }
 
-            var formatter = this.HttpContext.Services.GetRequiredService<IXmlFormatter>();
+            var options = this.HttpContext.HttpApiOptions.XmlDeserializeOptions;
+            var serializer = this.HttpContext.ServiceProvider.GetXmlSerializer();
             var xml = await this.HttpContext.ResponseMessage.Content.ReadAsStringAsync().ConfigureAwait(false);
-            return formatter.Deserialize(xml, objType);
+            return serializer.Deserialize(xml, objType, options);
         }
     }
 }

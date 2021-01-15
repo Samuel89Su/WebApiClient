@@ -4,7 +4,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace WebApiClientCore.Parameters
 {
@@ -22,17 +21,17 @@ namespace WebApiClientCore.Parameters
         /// <summary>
         /// 获取文件好友名称
         /// </summary>
-        public string FileName { get; }
-
-        /// <summary>
-        /// 获取编码后的文件好友名称
-        /// </summary>
-        public virtual string EncodedFileName => HttpUtility.UrlEncode(this.FileName, Encoding.UTF8);
+        public string? FileName { get; }
 
         /// <summary>
         /// 获取或设置文件的Mime
         /// </summary>
-        public string ContentType { get; set; } = "application/octet-stream";
+        public string? ContentType { get; set; }
+
+        /// <summary>
+        /// 获取编码后的文件好友名称
+        /// </summary>
+        public virtual string? EncodedFileName => HttpUtility.UrlEncode(this.FileName, Encoding.UTF8);
 
         /// <summary>
         /// form-data的一个文件项
@@ -58,7 +57,7 @@ namespace WebApiClientCore.Parameters
         /// <param name="buffer">数据</param>
         /// <param name="fileName">文件友好名称</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public FormDataFile(byte[] buffer, string fileName) :
+        public FormDataFile(byte[] buffer, string? fileName) :
             this(() => new MemoryStream(buffer), fileName)
         {
         }
@@ -71,7 +70,7 @@ namespace WebApiClientCore.Parameters
         /// <param name="seekableStream">数据流</param>
         /// <param name="fileName">文件友好名称</param>
         /// <returns></returns>
-        public FormDataFile(Stream seekableStream, string fileName)
+        public FormDataFile(Stream seekableStream, string? fileName)
             : this(() => new AutoRewindStream(seekableStream), fileName)
         {
         }
@@ -82,7 +81,7 @@ namespace WebApiClientCore.Parameters
         /// <param name="streamFactory">数据流的创建委托</param>
         /// <param name="fileName">文件友好名称</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public FormDataFile(Func<Stream> streamFactory, string fileName)
+        public FormDataFile(Func<Stream> streamFactory, string? fileName)
         {
             this.streamFactory = streamFactory ?? throw new ArgumentNullException(nameof(streamFactory));
             this.FileName = fileName;
@@ -95,7 +94,7 @@ namespace WebApiClientCore.Parameters
         public Task OnRequestAsync(ApiParameterContext context)
         {
             var stream = this.streamFactory();
-            context.HttpContext.RequestMessage.AddFormDataFile(stream, context.Parameter.Name, this.EncodedFileName, this.ContentType);
+            context.HttpContext.RequestMessage.AddFormDataFile(stream, context.ParameterName, this.EncodedFileName, this.ContentType);
             return Task.CompletedTask;
         }
 

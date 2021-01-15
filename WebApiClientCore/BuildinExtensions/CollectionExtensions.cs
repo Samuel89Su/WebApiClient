@@ -12,44 +12,36 @@ namespace WebApiClientCore
         /// <summary>
         /// 格式化集合
         /// </summary>
-        /// <param name="collection">集合</param>
+        /// <param name="keyValues">集合</param>
         /// <param name="format">格式</param>
         /// <returns></returns>
-        public static IEnumerable<KeyValue> CollectAs(this IEnumerable<KeyValue> collection, CollectionFormat format)
+        public static IEnumerable<KeyValue> CollectAs(this IEnumerable<KeyValue> keyValues, CollectionFormat format)
         {
-            if (format == CollectionFormat.Multi)
+            return format switch
             {
-                return collection;
-            }
-
-            switch (format)
-            {
-                case CollectionFormat.Csv:
-                    return collection.CollectAs(@",");
-
-                case CollectionFormat.Ssv:
-                    return collection.CollectAs(@" ");
-
-                case CollectionFormat.Tsv:
-                    return collection.CollectAs(@"\");
-
-                case CollectionFormat.Pipes:
-                    return collection.CollectAs(@"|");
-
-                default:
-                    throw new NotImplementedException(format.ToString());
-            }
+                CollectionFormat.Multi => keyValues,
+                CollectionFormat.Csv => keyValues.CollectAs(@","),
+                CollectionFormat.Ssv => keyValues.CollectAs(@" "),
+                CollectionFormat.Tsv => keyValues.CollectAs(@"\"),
+                CollectionFormat.Pipes => keyValues.CollectAs(@"|"),
+                _ => throw new NotImplementedException(format.ToString()),
+            };
         }
 
         /// <summary>
         /// 格式化集合
         /// </summary>
-        /// <param name="collection">集合</param>
+        /// <param name="keyValues">集合</param>
         /// <param name="separator">分隔符</param>
         /// <returns></returns>
-        private static IEnumerable<KeyValue> CollectAs(this IEnumerable<KeyValue> collection, string separator)
+        private static IEnumerable<KeyValue> CollectAs(this IEnumerable<KeyValue> keyValues, string separator)
         {
-            return collection.GroupBy(item => item.Key).Select(item =>
+            if (keyValues is ICollection<KeyValue> collection && collection.Count < 2)
+            {
+                return keyValues;
+            }
+
+            return keyValues.GroupBy(item => item.Key).Select(item =>
             {
                 var value = string.Join(separator, item.Select(i => i.Value));
                 return new KeyValue(item.Key, value);
